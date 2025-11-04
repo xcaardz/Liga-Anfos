@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Admin - Liga del Anfós</title>
+<style>
+body { font-family: Arial, sans-serif; padding: 20px; max-width: 700px; margin: auto; }
+input, button { padding: 6px; margin: 4px 0; }
+table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+th, td { border: 1px solid #ccc; padding: 8px; }
+</style>
+</head>
+<body>
+<h1>Admin - Liga del Anfós</h1>
+<p>Página de gestión. Debes iniciar sesión para modificar.</p>
+
+<div id="login">
+  <h3>Iniciar sesión</h3>
+  <input type="password" id="pass" placeholder="Contraseña" />
+  <button onclick="login()">Entrar</button>
+</div>
+
+<div id="panel" style="display:none;">
+  <button onclick="logout()">Cerrar sesión</button>
+
+  <h3>Añadir participante</h3>
+  <input id="newId" placeholder="id único (p1)" />
+  <input id="newName" placeholder="Nombre" />
+  <button onclick="addParticipant()">Agregar</button>
+
+  <h3>Participantes</h3>
+  <table id="tabla">
+    <thead><tr><th>#</th><th>Nombre</th><th>Puntos</th><th>Acciones</th></tr></thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script src="config.js"></script>
+<script>
+let token = localStorage.getItem("liga_token") || null;
+
+function showPanel() {
+  document.getElementById("login").style.display = token ? "none" : "block";
+  document.getElementById("panel").style.display = token ? "block" : "none";
+}
+
+async function login() {
+  const pw = document.getElementById("pass").value;
+  const res = await fetch(API_BASE, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ action: "login", password: pw })
+  });
+  const data = await res.json();
+  if(data.success) {
+    token = data.token;
+    localStorage.setItem("liga_token", token);
+    alert("Login correcto");
+    showPanel();
+    cargar();
+  } else alert("Contraseña incorrecta");
+}
+
+function logout() {
+  token = null;
+  localStorage.removeItem("liga_token");
+  showPanel();
+}
+
+async function cargar() {
+  const res = await fetch(API_BASE + "?action=list");
+  const data = await res.json();
+  const tbody = document.querySelector("#tabla tbody");
+  tbody.innerHTML = "";
+  if(data.success) {
+    data.data.forEach((item, i) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${i+1}</td>
+        <td>${item.nombre} <small>(${item.id})</small></td>
+        <td>${item.points}</td>
+        <td>
+          <button onclick="addPoints('${item.id}',1)">+1</button>
+          <button onclick="addPoints('${item.id}',2)">+2</button>
+          <button onclick="addPoints('${item.id}',3)">+3</button>
+          <button onclick="removeParticipant('${item.id}')">Eliminar</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+async function postAction(payload) {
+  if(token) payload.token = token;
+  const res = await fetch(API_BASE, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  if(data.success) cargar();
+  else {
+    alert("Error: " + data.error);
+    if(data.error === "invalid_or_expired_token") logout();
+  }
+}
+
+function addPoints(id, delta) { postAction({ action: "add_points", id, delta }) }
+function addParticipant() {
+  const id = document.getElementById("newId").value;
+  const nombre = document.getElementById("newName").value;
+  if(!id || !nombre) return alert("Rellena id y nombre");
+  postAction({ action: "add_participant", id, nombre });
+}
+function removeParticipant(id) {
+  if(confirm("¿Eliminar participante?")) postAction({ action: "remove_participant", id });
+}
+
+showPanel();
+if(token) cargar();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+const API_BASE = 'https://script.google.com/macros/s/AKfycbzOenI1qvTjZxnHJaoJMy9X3w9GtWgLSfLcGXAEjnzXe3Q4vSrCL1gYEPPStdh9RPkK/exec';
